@@ -43,6 +43,14 @@ contract('AlohaStaking', function (accounts) {
       { from: accounts[0] }
     );
 
+    this.alohaNFTMock.awardItem(
+      accounts[1],
+      3,
+      3,
+      3,
+      { from: accounts[0] }
+    );
+
     // Permissions
     await this.alohaMock.approve(
       this.alohaGovernance.address,
@@ -90,11 +98,6 @@ contract('AlohaStaking', function (accounts) {
         { from: accounts[1] }
       );
 
-      async function timeout(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-      }
-      await timeout(500);
-
       let userTokensTotal = await this.alohaGovernance.userTokensTotal.call(accounts[1]).valueOf();
       assert.equal(
         userTokensTotal,
@@ -113,16 +116,133 @@ contract('AlohaStaking', function (accounts) {
         { from: accounts[1] }
       );
 
-      async function timeout(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-      }
-      await timeout(500);
+      let userTokensTotal = await this.alohaGovernance.userTokensTotal.call(accounts[1]).valueOf();
+      assert.equal(
+        userTokensTotal,
+        2,
+        'usersTokensTotal doesn\'t match'
+      );
+    });
+
+    it('transfers the token', async function() {
+      await this.alohaGovernance.deposit(
+        1,
+        { from: accounts[1] }
+      );
+
+      let tokenOwner = await this.alohaNFTMock.ownerOf.call(1).valueOf();
+      assert.equal(
+        tokenOwner,
+        this.alohaGovernance.address,
+        'token owner is not the governance address'
+      );
+    });
+
+  });
+
+  describe('Withdraw', function () {
+
+    it('with one token works', async function() {
+      await this.alohaGovernance.deposit(
+        1,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.withdraw(
+        1,
+        { from: accounts[1] }
+      );
+
+      let userTokensTotal = await this.alohaGovernance.userTokensTotal.call(accounts[1]).valueOf();
+      assert.equal(
+        userTokensTotal,
+        0,
+        'usersTokensTotal doesn\'t match'
+      );
+    });
+
+    it('with three tokens works', async function() {
+      await this.alohaGovernance.deposit(
+        1,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        2,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        3,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.withdraw(
+        3,
+        { from: accounts[1] }
+      );
 
       let userTokensTotal = await this.alohaGovernance.userTokensTotal.call(accounts[1]).valueOf();
       assert.equal(
         userTokensTotal,
         2,
         'usersTokensTotal doesn\'t match'
+      );
+    });
+
+    it('add three tokens and removing two of them', async function() {
+      await this.alohaGovernance.deposit(
+        1,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        2,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        3,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.withdraw(
+        3,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.withdraw(
+        1,
+        { from: accounts[1] }
+      );
+
+      let userToken = await this.alohaGovernance.usersTokens.call(accounts[1], 0).valueOf();
+      assert.equal(
+        userToken,
+        2,
+        'Remains token after withdraw is not the correct'
+      );
+    });
+
+    it('transfers the token back', async function() {
+      await this.alohaGovernance.deposit(
+        1,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        2,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        3,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.withdraw(
+        2,
+        { from: accounts[1] }
+      );
+
+      let tokenOwner = await this.alohaNFTMock.ownerOf.call(2).valueOf();
+      assert.equal(
+        tokenOwner,
+        accounts[1],
+        'token owner is not the user address'
       );
     });
 

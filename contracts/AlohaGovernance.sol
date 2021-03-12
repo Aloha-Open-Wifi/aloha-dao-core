@@ -46,6 +46,8 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     mapping (address => User) public users; 
     // users[address] = tokens[]
     mapping (address => uint256[]) public usersTokens; 
+    // users[address][tokenId] = index in usersTokens;
+    mapping (address => mapping(uint256 => uint256)) public usersTokensIndex; 
     // usersPower[address] = totalPower
     mapping (address => uint256) public usersPower;
     // proposals[index] = Proposal
@@ -102,7 +104,16 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
 
         users[msg.sender].canVote = _getTime() + votingDelay;
         users[msg.sender].canWithdraw = _getTime() + withdrawalDelay;
+
         usersTokens[msg.sender].push(_tokenId);
+
+        usersTokensIndex[msg.sender][_tokenId] = userTokensTotal(msg.sender) - 1;
+    }
+
+    function withdraw(uint256 _tokenId) public {
+        IERC721(alohaERC721).transferFrom(address(this), msg.sender, _tokenId);
+
+        removeToken(msg.sender, _tokenId);
     }
 
     function userTokens(address user) public view returns(uint256[] memory) {
@@ -118,5 +129,18 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     *******************/
     function _getTime() internal view returns (uint256) {
         return block.timestamp;
+    }
+
+    function removeToken(address user, uint256 _tokenId) internal {
+        uint256 length = usersTokens[user].length;
+        uint256 tokenIndex = usersTokensIndex[msg.sender][_tokenId];
+        
+        if (tokenIndex >= length) return;
+
+        uint256 lastToken = usersTokens[user][length - 1];
+        usersTokens[user][tokenIndex] = lastToken;
+        usersTokens[user].pop();
+
+        usersTokensIndex[msg.sender][_tokenId] = 0;
     }
 }
