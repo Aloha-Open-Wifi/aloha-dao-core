@@ -44,10 +44,8 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
 
     // users[address] = User
     mapping (address => User) public users; 
-    // users[address] = tokens[]
-    mapping (address => uint256[]) public usersTokens; 
-    // users[address][tokenId] = index in usersTokens;
-    mapping (address => mapping(uint256 => uint256)) public usersTokensIndex; 
+    // tokenOwner[tokenId] = address
+    mapping (uint256 => address) public tokenOwner; 
     // usersPower[address] = totalPower
     mapping (address => uint256) public usersPower;
     // proposals[index] = Proposal
@@ -56,6 +54,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     struct User {
         uint256 canVote;        // Timestamp when user deposits delay ends
         uint256 canWithdraw;    // Timestamp when user withdraw delay ends
+        uint256 power;          // Total value of the user votes
     }
 
     struct Action {
@@ -104,24 +103,15 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
 
         users[msg.sender].canVote = _getTime() + votingDelay;
         users[msg.sender].canWithdraw = _getTime() + withdrawalDelay;
+        users[msg.sender].power = 0; // TODO
 
-        usersTokens[msg.sender].push(_tokenId);
-
-        usersTokensIndex[msg.sender][_tokenId] = userTokensTotal(msg.sender) - 1;
+        tokenOwner[_tokenId] = msg.sender;
     }
 
     function withdraw(uint256 _tokenId) public {
-        IERC721(alohaERC721).transferFrom(address(this), msg.sender, _tokenId);
+        IERC721(alohaERC721).transferFrom(address(this), tokenOwner[_tokenId], _tokenId);
 
-        removeToken(msg.sender, _tokenId);
-    }
-
-    function userTokens(address user) public view returns(uint256[] memory) {
-        return usersTokens[user];
-    }
-
-    function userTokensTotal(address user) public view returns(uint256) {
-        return usersTokens[user].length;
+        tokenOwner[_tokenId] = address(0x0);
     }
 
     /******************
@@ -129,18 +119,5 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     *******************/
     function _getTime() internal view returns (uint256) {
         return block.timestamp;
-    }
-
-    function removeToken(address user, uint256 _tokenId) internal {
-        uint256 length = usersTokens[user].length;
-        uint256 tokenIndex = usersTokensIndex[msg.sender][_tokenId];
-        
-        if (tokenIndex >= length) return;
-
-        uint256 lastToken = usersTokens[user][length - 1];
-        usersTokens[user][tokenIndex] = lastToken;
-        usersTokens[user].pop();
-
-        usersTokensIndex[msg.sender][_tokenId] = 0;
     }
 }

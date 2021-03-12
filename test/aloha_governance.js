@@ -92,21 +92,21 @@ contract('AlohaStaking', function (accounts) {
 
   describe('Deposit', function () {
 
-    it('first time works', async function() {
+    it('add fisrt token', async function() {
       await this.alohaGovernance.deposit(
         1,
         { from: accounts[1] }
       );
 
-      let userTokensTotal = await this.alohaGovernance.userTokensTotal.call(accounts[1]).valueOf();
+      let userOwner = await this.alohaGovernance.tokenOwner.call(1).valueOf();
       assert.equal(
-        userTokensTotal,
-        1,
-        'usersTokensTotal doesn\'t match'
+        userOwner,
+        accounts[1],
+        'userOwner doesn\'t match'
       );
     });
 
-    it('second time works', async function() {
+    it('add second token', async function() {
       await this.alohaGovernance.deposit(
         1,
         { from: accounts[1] }
@@ -116,11 +116,11 @@ contract('AlohaStaking', function (accounts) {
         { from: accounts[1] }
       );
 
-      let userTokensTotal = await this.alohaGovernance.userTokensTotal.call(accounts[1]).valueOf();
+      let userOwner = await this.alohaGovernance.tokenOwner.call(2).valueOf();
       assert.equal(
-        userTokensTotal,
-        2,
-        'usersTokensTotal doesn\'t match'
+        userOwner,
+        accounts[1],
+        'userOwner doesn\'t match'
       );
     });
 
@@ -142,7 +142,7 @@ contract('AlohaStaking', function (accounts) {
 
   describe('Withdraw', function () {
 
-    it('with one token works', async function() {
+    it('with one token', async function() {
       await this.alohaGovernance.deposit(
         1,
         { from: accounts[1] }
@@ -153,15 +153,15 @@ contract('AlohaStaking', function (accounts) {
         { from: accounts[1] }
       );
 
-      let userTokensTotal = await this.alohaGovernance.userTokensTotal.call(accounts[1]).valueOf();
+      let userOwner = await this.alohaGovernance.tokenOwner.call(1).valueOf();
       assert.equal(
-        userTokensTotal,
+        userOwner,
         0,
-        'usersTokensTotal doesn\'t match'
+        'userOwner doesn\'t match'
       );
     });
 
-    it('with three tokens works', async function() {
+    it('with two tokens', async function() {
       await this.alohaGovernance.deposit(
         1,
         { from: accounts[1] }
@@ -170,52 +170,17 @@ contract('AlohaStaking', function (accounts) {
         2,
         { from: accounts[1] }
       );
-      await this.alohaGovernance.deposit(
-        3,
-        { from: accounts[1] }
-      );
 
       await this.alohaGovernance.withdraw(
-        3,
+        1,
         { from: accounts[1] }
       );
 
-      let userTokensTotal = await this.alohaGovernance.userTokensTotal.call(accounts[1]).valueOf();
+      let userOwner = await this.alohaGovernance.tokenOwner.call(1).valueOf();
       assert.equal(
-        userTokensTotal,
-        2,
-        'usersTokensTotal doesn\'t match'
-      );
-    });
-
-    it('add three tokens and removing two of them', async function() {
-      await this.alohaGovernance.deposit(
-        1,
-        { from: accounts[1] }
-      );
-      await this.alohaGovernance.deposit(
-        2,
-        { from: accounts[1] }
-      );
-      await this.alohaGovernance.deposit(
-        3,
-        { from: accounts[1] }
-      );
-
-      await this.alohaGovernance.withdraw(
-        3,
-        { from: accounts[1] }
-      );
-      await this.alohaGovernance.withdraw(
-        1,
-        { from: accounts[1] }
-      );
-
-      let userToken = await this.alohaGovernance.usersTokens.call(accounts[1], 0).valueOf();
-      assert.equal(
-        userToken,
-        2,
-        'Remains token after withdraw is not the correct'
+        userOwner,
+        0,
+        'userOwner doesn\'t match'
       );
     });
 
