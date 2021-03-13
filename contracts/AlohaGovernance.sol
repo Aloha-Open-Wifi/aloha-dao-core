@@ -33,7 +33,6 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     event ExecutedProposal(uint256 _proposalId, address indexed user);
     event Deposit(address indexed user, uint256 tokenId, uint256 power, uint256 date);
     event Withdrawal(address indexed user, uint256 tokenId, uint256 power, uint256 date);
-    event Log(uint256 data1, uint256 data2, uint256 data3, bool data4);
 
     /******************
     INTERNAL ACCOUNTING
@@ -340,12 +339,6 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     }
 
     modifier preventWhales() {
-        emit Log(
-            totalPower,
-            users[msg.sender].power,
-            (users[msg.sender].power).mul(10000).div(totalPower),
-            (users[msg.sender].power).mul(10000).div(totalPower) <= powerLimit
-        );
         require(
             (users[msg.sender].power).mul(10000).div(totalPower) <= powerLimit,
             "AlohaGovernance: User has too much power"
