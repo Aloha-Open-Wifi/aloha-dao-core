@@ -7,4 +7,6 @@ interface IAlohaNFT {
         uint256 tokenRarity,
         uint256 tokenBackground
     ) external returns (uint256);
+
+    function tokenRarity(uint256 tokenId) external view returns (uint256);
 }

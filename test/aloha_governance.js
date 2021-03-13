@@ -8,6 +8,8 @@ const AlohaNFTMock = artifacts.require("AlohaNFTMock");
 
 contract('AlohaStaking', function (accounts) {
 
+  const powerByRarity = [1, 5, 50];
+
   beforeEach(async function () {
     // Deploy
     this.alohaMock = await AlohaMock.new({ from: accounts[0] });
@@ -93,34 +95,54 @@ contract('AlohaStaking', function (accounts) {
   describe('Deposit', function () {
 
     it('add fisrt token', async function() {
+      const tokenId = 1;
       await this.alohaGovernance.deposit(
-        1,
+        tokenId,
         { from: accounts[1] }
       );
 
-      let userOwner = await this.alohaGovernance.tokenOwner.call(1).valueOf();
+      const userOwner = await this.alohaGovernance.tokenOwner.call(1).valueOf();
       assert.equal(
         userOwner,
         accounts[1],
-        'userOwner doesn\'t match'
+        'userOwner does not match'
+      );
+
+      const user = await this.alohaGovernance.users.call(accounts[1]).valueOf();
+      const rarity = await this.alohaNFTMock.tokenRarity.call(tokenId).valueOf();
+      assert.equal(
+        user.power,
+        powerByRarity[rarity - 1],
+        'user power is not correct'
       );
     });
 
     it('add second token', async function() {
+      const tokenIdOne = 1;
+      const tokenIdTwo = 2;
       await this.alohaGovernance.deposit(
-        1,
+        tokenIdOne,
         { from: accounts[1] }
       );
       await this.alohaGovernance.deposit(
-        2,
+        tokenIdTwo,
         { from: accounts[1] }
       );
 
-      let userOwner = await this.alohaGovernance.tokenOwner.call(2).valueOf();
+      const userOwner = await this.alohaGovernance.tokenOwner.call(tokenIdTwo).valueOf();
       assert.equal(
         userOwner,
         accounts[1],
         'userOwner doesn\'t match'
+      );
+
+      const user = await this.alohaGovernance.users.call(accounts[1]).valueOf();
+      const rarityOne = await this.alohaNFTMock.tokenRarity.call(tokenIdOne).valueOf();
+      const rarityTwo = await this.alohaNFTMock.tokenRarity.call(tokenIdTwo).valueOf();
+      assert.equal(
+        user.power,
+        powerByRarity[rarityOne - 1] + powerByRarity[rarityTwo - 1],
+        'user power is not correct'
       );
     });
 
@@ -130,7 +152,7 @@ contract('AlohaStaking', function (accounts) {
         { from: accounts[1] }
       );
 
-      let tokenOwner = await this.alohaNFTMock.ownerOf.call(1).valueOf();
+      const tokenOwner = await this.alohaNFTMock.ownerOf.call(1).valueOf();
       assert.equal(
         tokenOwner,
         this.alohaGovernance.address,
@@ -141,50 +163,86 @@ contract('AlohaStaking', function (accounts) {
   });
 
   describe('Withdraw', function () {
-
-    it('with one token', async function() {
+    
+    it('delay in progress', async function() {
       await this.alohaGovernance.deposit(
         1,
         { from: accounts[1] }
       );
 
-      await this.alohaGovernance.withdraw(
-        1,
+      await expectRevert(
+        this.alohaGovernance.withdraw(1, { from: accounts[1] }),
+        'AlohaGovernance: User can\'t withdraw yet'
+      );
+    });
+
+    it('with one token', async function() {
+      await this.alohaGovernance.setWithdrawalDelay(0, { from: accounts[0] });
+
+      const tokenId = 1;
+      await this.alohaGovernance.deposit(
+        tokenId,
         { from: accounts[1] }
       );
 
-      let userOwner = await this.alohaGovernance.tokenOwner.call(1).valueOf();
+      await this.alohaGovernance.withdraw(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const userOwner = await this.alohaGovernance.tokenOwner.call(1).valueOf();
       assert.equal(
         userOwner,
         0,
-        'userOwner doesn\'t match'
+        'userOwner does not match'
+      );
+
+      const user = await this.alohaGovernance.users.call(accounts[1]).valueOf();
+      assert.equal(
+        user.power,
+        0,
+        'user power is not correct'
       );
     });
 
     it('with two tokens', async function() {
+      await this.alohaGovernance.setWithdrawalDelay(0, { from: accounts[0] });
+
+      const tokenIdOne = 1;
+      const tokenIdTwo = 2;
       await this.alohaGovernance.deposit(
-        1,
+        tokenIdOne,
         { from: accounts[1] }
       );
       await this.alohaGovernance.deposit(
-        2,
+        tokenIdTwo,
         { from: accounts[1] }
       );
 
       await this.alohaGovernance.withdraw(
-        1,
+        tokenIdOne,
         { from: accounts[1] }
       );
 
-      let userOwner = await this.alohaGovernance.tokenOwner.call(1).valueOf();
+      const userOwner = await this.alohaGovernance.tokenOwner.call(1).valueOf();
       assert.equal(
         userOwner,
         0,
-        'userOwner doesn\'t match'
+        'userOwner does not match'
+      );
+
+      const user = await this.alohaGovernance.users.call(accounts[1]).valueOf();
+      const rarityTwo = await this.alohaNFTMock.tokenRarity.call(tokenIdTwo).valueOf();
+      assert.equal(
+        user.power,
+        powerByRarity[rarityTwo - 1],
+        'user power is not correct'
       );
     });
 
     it('transfers the token back', async function() {
+      await this.alohaGovernance.setWithdrawalDelay(0, { from: accounts[0] });
+
       await this.alohaGovernance.deposit(
         1,
         { from: accounts[1] }
@@ -203,7 +261,7 @@ contract('AlohaStaking', function (accounts) {
         { from: accounts[1] }
       );
 
-      let tokenOwner = await this.alohaNFTMock.ownerOf.call(2).valueOf();
+      const tokenOwner = await this.alohaNFTMock.ownerOf.call(2).valueOf();
       assert.equal(
         tokenOwner,
         accounts[1],

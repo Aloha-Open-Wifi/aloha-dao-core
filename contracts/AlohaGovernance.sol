@@ -6,6 +6,7 @@ import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "./IAlohaNFT.sol";
 
 contract AlohaGovernance is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
@@ -98,20 +99,38 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         proposalModerator = msg.sender;
     }
 
+    /**
+    * @dev Users deposits ALOHA NFT and gain voting power based on the rarity of the token.
+    */
     function deposit(uint256 _tokenId) public {
         IERC721(alohaERC721).transferFrom(msg.sender, address(this), _tokenId);
 
+        uint256 rarity = IAlohaNFT(alohaERC721).tokenRarity(_tokenId);
+
         users[msg.sender].canVote = _getTime() + votingDelay;
         users[msg.sender].canWithdraw = _getTime() + withdrawalDelay;
-        users[msg.sender].power = 0; // TODO
+        users[msg.sender].power += powerByRarity[rarity - 1];
 
         tokenOwner[_tokenId] = msg.sender;
     }
 
-    function withdraw(uint256 _tokenId) public {
+    /**
+    * @dev Los usuarios retiran ALOHA NFT y pierden poder de voto en función de la rareza del token.
+    */
+    function withdraw(uint256 _tokenId)
+        public
+        canWithdraw()
+    {
         IERC721(alohaERC721).transferFrom(address(this), tokenOwner[_tokenId], _tokenId);
 
+        uint256 rarity = IAlohaNFT(alohaERC721).tokenRarity(_tokenId);
+        users[msg.sender].power -= powerByRarity[rarity - 1];
+
         tokenOwner[_tokenId] = address(0x0);
+    }
+
+    function setWithdrawalDelay(uint256 _withdrawalDelay) public onlyOwner() {
+        withdrawalDelay = _withdrawalDelay;
     }
 
     /******************
@@ -119,5 +138,16 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     *******************/
     function _getTime() internal view returns (uint256) {
         return block.timestamp;
+    }
+
+    /******************
+    MODIFIERS
+    *******************/
+    modifier canWithdraw() {
+        require(
+            _getTime() >= users[msg.sender].canWithdraw,
+            "AlohaGovernance: User can't withdraw yet"
+        );
+        _;
     }
 }
