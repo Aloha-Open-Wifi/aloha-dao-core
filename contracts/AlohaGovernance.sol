@@ -19,7 +19,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     uint256 public votingDelay = 3 days;                // Time to wait before deposit power counts
     uint256 public withdrawalDelay = 7 days;            // Time to wait before can withdraw deposit
     uint256 public votingDuration = 7 days;             // Proposal voting duration
-    uint256 public runProposalDelay = 2 days;           // Time to wait before run proposal approved
+    uint256 public executeProposalDelay = 2 days;       // Time to wait before run proposal approved
     uint256 public submitProposalRequiredPower = 1;     // Minimal power to create a proposal
     address public proposalModerator;                   // Address who must review each proposal before voting starts
     uint256[] public powerByRarity = [1, 5, 50];        // Token power by rarity (1, 2 and 3)
@@ -30,7 +30,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     event ProcessedProposal(uint256 proposalId, address indexed proposer, string details, uint256 created);
     event ReviewedProposal(uint256 proposalId, address indexed proposalModerator, ReviewStatus newStatus, uint256 created);
     event VotedProposal(uint256 _proposalId, address indexed user, Vote vote, uint256 created);
-    event ProcessedProposal();
+    event ExecutedProposal(uint256 _proposalId, address indexed user);
     event Deposit(address indexed user, uint256 tokenId, uint256 power, uint256 date);
     event Withdrawal(address indexed user, uint256 tokenId, uint256 power, uint256 date);
 
@@ -232,13 +232,24 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     /**
     * @dev Vote proposal
     */
-    function runProposal(uint256 _proposalId)
+    function executeProposal(uint256 _proposalId)
         public
         reviewedOK(_proposalId)
+        onChainProposal(_proposalId)
+        notExecuted(_proposalId)
         ended(_proposalId)
         didPass(_proposalId)
+        returns (bytes memory) 
     {
- 
+        Action memory action = proposals[_proposalId].action;
+
+        action.executed = true;
+        (bool success, bytes memory retData) = action.to.call.value(action.value)(action.data);
+        require(success, "AlohaGovernance: Execution failure");
+        
+        emit ExecutedProposal(_proposalId, msg.sender);
+        
+        return retData;
     }
 
     function setVotingDelay(uint256 _votingDelay) public onlyOwner() {
@@ -352,6 +363,22 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         require(
             proposals[_proposalId].yesVotes > proposals[_proposalId].noVotes,
             'AlohaGovernance: This proposal was denied'
+        );
+        _;
+    }
+
+    modifier onChainProposal(uint256 _proposalId) {
+        require(
+            proposals[_proposalId].action.to != address(0),
+            'AlohaGovernance: Not on-chain proposal'
+        );
+        _;
+    }
+
+    modifier notExecuted(uint256 _proposalId) {
+        require(
+            proposals[_proposalId].action.executed == false,
+            'AlohaGovernance: Already executed proposal'
         );
         _;
     }

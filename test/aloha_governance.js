@@ -1,4 +1,4 @@
-const { expectRevert, expectEvent, BN } = require('@openzeppelin/test-helpers');
+const { expectRevert, expectEvent, BN, time } = require('@openzeppelin/test-helpers');
 const truffleAssert = require('truffle-assertions');
 const { expect } = require('chai');
 
@@ -191,8 +191,6 @@ contract('AlohaStaking', function (accounts) {
   describe('Withdraw', function () {
     
     it('delay in progress', async function() {
-      await this.alohaGovernance.setWithdrawalDelay(10000, { from: accounts[0] });
-
       await this.alohaGovernance.deposit(
         1,
         { from: accounts[1] }
@@ -205,13 +203,13 @@ contract('AlohaStaking', function (accounts) {
     });
 
     it('with one token', async function() {
-      await this.alohaGovernance.setWithdrawalDelay(0, { from: accounts[0] });
-
       const tokenId = 1;
       await this.alohaGovernance.deposit(
         tokenId,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(7));
 
       await this.alohaGovernance.withdraw(
         tokenId,
@@ -234,8 +232,6 @@ contract('AlohaStaking', function (accounts) {
     });
 
     it('with two tokens', async function() {
-      await this.alohaGovernance.setWithdrawalDelay(0, { from: accounts[0] });
-
       const tokenIdOne = 1;
       const tokenIdTwo = 2;
       await this.alohaGovernance.deposit(
@@ -246,6 +242,8 @@ contract('AlohaStaking', function (accounts) {
         tokenIdTwo,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(7));
 
       await this.alohaGovernance.withdraw(
         tokenIdOne,
@@ -269,8 +267,6 @@ contract('AlohaStaking', function (accounts) {
     });
 
     it('transfers the token back', async function() {
-      await this.alohaGovernance.setWithdrawalDelay(0, { from: accounts[0] });
-
       await this.alohaGovernance.deposit(
         1,
         { from: accounts[1] }
@@ -283,6 +279,8 @@ contract('AlohaStaking', function (accounts) {
         3,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(7));
 
       await this.alohaGovernance.withdraw(
         2,
@@ -302,8 +300,6 @@ contract('AlohaStaking', function (accounts) {
       const tokenIdTwo = 2;
       const tokenIdThree = 3;
 
-      await this.alohaGovernance.setWithdrawalDelay(0, { from: accounts[0] });
-
       await this.alohaGovernance.deposit(
         tokenIdOne,
         { from: accounts[1] }
@@ -316,6 +312,8 @@ contract('AlohaStaking', function (accounts) {
         tokenIdThree,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(7));
 
       await this.alohaGovernance.withdraw(
         tokenIdTwo,
@@ -380,13 +378,13 @@ contract('AlohaStaking', function (accounts) {
     });
 
     it('with power active', async function() {
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
-
       const tokenId = 3;
       await this.alohaGovernance.deposit(
         tokenId,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -440,13 +438,13 @@ contract('AlohaStaking', function (accounts) {
   describe('Review on-chain proposal', function () {
 
     it('by non moderator user', async function() {
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
-
       const tokenId = 3;
       await this.alohaGovernance.deposit(
         tokenId,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -480,13 +478,13 @@ contract('AlohaStaking', function (accounts) {
     });
 
     it('and reject', async function() {
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
-
       const tokenId = 3;
       await this.alohaGovernance.deposit(
         tokenId,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -529,13 +527,13 @@ contract('AlohaStaking', function (accounts) {
     });
 
     it('and approve', async function() {
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
-
       const tokenId = 3;
       await this.alohaGovernance.deposit(
         tokenId,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -578,13 +576,13 @@ contract('AlohaStaking', function (accounts) {
     });
 
     it('and review again', async function() {
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
-
       const tokenId = 3;
       await this.alohaGovernance.deposit(
         tokenId,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -640,13 +638,13 @@ contract('AlohaStaking', function (accounts) {
   describe('Vote on-chain proposal', function () {
 
     it('(yes) with power', async function() {
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
-
       const tokenId = 3;
       await this.alohaGovernance.deposit(
         tokenId,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -695,13 +693,13 @@ contract('AlohaStaking', function (accounts) {
     });
 
     it('(no) with power', async function() {
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
-
       const tokenId = 3;
       await this.alohaGovernance.deposit(
         tokenId,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -753,11 +751,12 @@ contract('AlohaStaking', function (accounts) {
       const tokenIdOne = 1;
       const tokenIdThree = 3;
       
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
       await this.alohaGovernance.deposit(
         tokenIdOne,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -786,7 +785,6 @@ contract('AlohaStaking', function (accounts) {
         { from: accounts[0] }
       );
 
-      await this.alohaGovernance.setVotingDelay(1000, { from: accounts[0] });
       await this.alohaGovernance.deposit(
         tokenIdThree,
         { from: accounts[1] }
@@ -817,11 +815,12 @@ contract('AlohaStaking', function (accounts) {
     it('not reviewed', async function() {
       const tokenIdThree = 3;
       
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
       await this.alohaGovernance.deposit(
         tokenIdThree,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -857,11 +856,12 @@ contract('AlohaStaking', function (accounts) {
     it('reviewed KO', async function() {
       const tokenIdThree = 3;
       
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
       await this.alohaGovernance.deposit(
         tokenIdThree,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -901,13 +901,13 @@ contract('AlohaStaking', function (accounts) {
     });
 
     it('two times voting', async function() {
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
-
       const tokenId = 3;
       await this.alohaGovernance.deposit(
         tokenId,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -965,14 +965,13 @@ contract('AlohaStaking', function (accounts) {
     });
 
     it('out of time voting', async function() {
-      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
-      await this.alohaGovernance.setVotingDuration(0, { from: accounts[0] });
-
       const tokenId = 3;
       await this.alohaGovernance.deposit(
         tokenId,
         { from: accounts[1] }
       );
+
+      await time.increase(time.duration.days(3));
 
       const actionTo = this.dummyMock.address;
       const actionValue = 0;
@@ -1000,7 +999,7 @@ contract('AlohaStaking', function (accounts) {
         { from: accounts[0] }
       );
 
-      await timeout(1000);
+      await time.increase(time.duration.days(8));
 
       await expectRevert(
         this.alohaGovernance.voteProposal(
@@ -1014,12 +1013,77 @@ contract('AlohaStaking', function (accounts) {
 
   });
 
+  describe('Execute on-chain proposal', function () {
+
+    it('runs', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(3));
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = '0x552410770000000000000000000000000000000000000000000000000000000000000001';
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.voteProposal(
+        proposalId,
+        1,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(7));
+
+      const result = await this.alohaGovernance.executeProposal.call(
+        proposalId,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.executeProposal(
+        proposalId,
+        { from: accounts[1] }
+      );
+      assert.equal(
+        result,
+        1,
+        'Returned executeProposal value is wrong'
+      );
+
+      const mockStatus = await this.dummyMock.status.call().valueOf();
+      assert.equal(
+        mockStatus,
+        1,
+        'Contract new value after execute wrong'
+      );
+    });
+
+  });
+
 });
 
 function sumStrings(a,b) { 
   return ((BigInt(a)) + BigInt(b)).toString();
-}
-
-async function timeout(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
