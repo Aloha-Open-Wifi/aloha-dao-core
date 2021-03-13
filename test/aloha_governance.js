@@ -484,6 +484,60 @@ contract('AlohaStaking', function (accounts) {
 
   });
 
+  describe('Submit off-chain proposal', function () {
+
+    it('with power active', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(3));
+
+      const details = 'https://www.meme.com';
+
+      await this.alohaGovernance.submitOffChainProposal(
+        details,
+        { from: accounts[1] }
+      );
+
+      proposal = await this.alohaGovernance.proposals.call(0).valueOf();
+      assert.equal(
+        proposal.proposer,
+        accounts[1],
+        'Created proposal has not right "proposer" value'
+      );
+      assert.equal(
+        proposal.action.value,
+        0,
+        'Created proposal has not right "action" value'
+      );
+      assert.equal(
+        proposal.action.to,
+        '0x0000000000000000000000000000000000000000',
+        'Created proposal has not right "action to" value'
+      );
+      assert.equal(
+        proposal.action.data,
+        '0x',
+        'Created proposal has not right "action data" value'
+      );
+      assert.equal(
+        proposal.details,
+        details,
+        'Created proposal has not right "details" value'
+      );
+      assert.equal(
+        proposal.review,
+        0,
+        'Created proposal has not right "review" value'
+      );
+
+    });
+
+  });
+
   describe('Review on-chain proposal', function () {
 
     it('by non moderator user', async function() {
@@ -1150,6 +1204,7 @@ contract('AlohaStaking', function (accounts) {
       );
 
       await time.increase(time.duration.days(7));
+      await time.increase(time.duration.days(2));
 
       const result = await this.alohaGovernance.executeProposal.call(
         proposalId,
@@ -1215,6 +1270,7 @@ contract('AlohaStaking', function (accounts) {
       );
 
       await time.increase(time.duration.days(7));
+      await time.increase(time.duration.days(2));
 
       await expectRevert(
         this.alohaGovernance.executeProposal(
@@ -1331,6 +1387,7 @@ contract('AlohaStaking', function (accounts) {
       );
 
       await time.increase(time.duration.days(7));
+      await time.increase(time.duration.days(2));
 
       await this.alohaGovernance.executeProposal(
         proposalId,
@@ -1388,6 +1445,7 @@ contract('AlohaStaking', function (accounts) {
       );
 
       await time.increase(time.duration.days(7));
+      await time.increase(time.duration.days(2));
 
       await expectRevert(
         this.alohaGovernance.executeProposal(
@@ -1395,6 +1453,58 @@ contract('AlohaStaking', function (accounts) {
           { from: accounts[1] }
         ),
         'AlohaGovernance: Not on-chain proposal'
+      );
+    });
+
+    it('when delay not ended', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(3));
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = '0x552410770000000000000000000000000000000000000000000000000000000000000001';
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.voteProposal(
+        proposalId,
+        1,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(7));
+
+      await expectRevert(
+        this.alohaGovernance.executeProposal(
+          proposalId,
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: This proposal executing timing delay has not ended'
       );
     });
 

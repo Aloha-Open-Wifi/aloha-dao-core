@@ -155,31 +155,20 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         canSubmitProposal()
         returns (uint256 proposalId)
     {
-        uint256 timeNow = _getTime();
-        uint256 newProposalId = proposalCount;
-        proposalCount += 1;
+        return _submitProposal(_actionTo, _actionValue, _actionData, _details);
+    }
 
-        Action memory onChainAction = Action({
-            value: _actionValue,
-            to: _actionTo,
-            executed: false,
-            data: _actionData
-        });
-
-        proposals[newProposalId] = Proposal({
-            proposer: msg.sender,
-            action: onChainAction,
-            details: _details,
-            starting: 0,
-            yesVotes: 0,
-            noVotes: 0,
-            review: ReviewStatus.Waiting,
-            created: timeNow
-        });
-
-        emit ProcessedProposal(newProposalId, msg.sender, _details, timeNow);
-
-        return newProposalId;
+    /**
+    * @dev Users submits a on-chain proposal
+    */
+    function submitOffChainProposal(
+        string memory _details
+    )
+        public
+        canSubmitProposal()
+        returns (uint256 proposalId)
+    {
+       return _submitProposal(address(0x0), 0, '', _details);
     }
 
     /**
@@ -237,6 +226,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         notExecuted(_proposalId)
         ended(_proposalId)
         didPass(_proposalId)
+        checkDelayExecution(_proposalId)
         returns (bytes memory) 
     {
         Action memory action = proposals[_proposalId].action;
@@ -273,6 +263,41 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     /******************
     PRIVATE FUNCTIONS
     *******************/
+    function _submitProposal(
+        address _actionTo,
+        uint256 _actionValue,
+        bytes memory _actionData,
+        string memory _details
+    )
+        internal
+        returns (uint256 proposalId)
+    {
+        uint256 timeNow = _getTime();
+        uint256 newProposalId = proposalCount;
+        proposalCount += 1;
+
+        Action memory onChainAction = Action({
+            value: _actionValue,
+            to: _actionTo,
+            executed: false,
+            data: _actionData
+        });
+
+        proposals[newProposalId] = Proposal({
+            proposer: msg.sender,
+            action: onChainAction,
+            details: _details,
+            starting: 0,
+            yesVotes: 0,
+            noVotes: 0,
+            review: ReviewStatus.Waiting,
+            created: timeNow
+        });
+
+        emit ProcessedProposal(newProposalId, msg.sender, _details, timeNow);
+
+        return newProposalId;
+    }
     function _getTime() internal view returns (uint256) {
         return block.timestamp;
     }
@@ -377,6 +402,14 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         require(
             proposals[_proposalId].action.executed == false,
             'AlohaGovernance: Already executed proposal'
+        );
+        _;
+    }
+
+    modifier checkDelayExecution(uint256 _proposalId) {
+        require(
+            _getTime() >= proposals[_proposalId].starting + votingDuration + executeProposalDelay,
+            'AlohaGovernance: This proposal executing timing delay has not ended'
         );
         _;
     }
