@@ -517,10 +517,449 @@ contract('AlohaStaking', function (accounts) {
       
     });
 
+    it('and review again', async function() {
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await expectRevert(
+        this.alohaGovernance.reviewProposal(
+          proposalId,
+          2,
+          { from: accounts[0] }
+        ),
+        'AlohaGovernance: This proposal has already been reviewed'
+      );
+
+      proposal = await this.alohaGovernance.proposals.call(proposalId).valueOf();
+      assert.equal(
+        proposal.review,
+        1,
+        'Approved proposal has not right "review" value'
+      );
+      assert.notEqual(
+        proposal.starting,
+        0,
+        'Approved proposal has not right "starting" value'
+      );
+      
+    });
+
+  });
+
+  describe('Vote on-chain proposal', function () {
+
+    it('(yes) with power', async function() {
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.voteProposal(
+        proposalId,
+        1, // Yes
+        { from: accounts[1] }
+      );
+
+      const user = await this.alohaGovernance.users.call(accounts[1]).valueOf();
+      const proposal = await this.alohaGovernance.proposals.call(proposalId).valueOf();
+      assert.equal(
+        Number(proposal.yesVotes),
+        Number(user.power),
+        'User votes has not been recorded'
+      );
+      assert.equal(
+        proposal.noVotes,
+        0,
+        'Voting count is not correct'
+      );
+    });
+
+    it('(no) with power', async function() {
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.voteProposal(
+        proposalId,
+        2, // No
+        { from: accounts[1] }
+      );
+
+      const user = await this.alohaGovernance.users.call(accounts[1]).valueOf();
+      const proposal = await this.alohaGovernance.proposals.call(proposalId).valueOf();
+      assert.equal(
+        Number(proposal.noVotes),
+        Number(user.power),
+        'User votes has not been recorded'
+      );
+      assert.equal(
+        proposal.yesVotes,
+        0,
+        'Voting count is not correct'
+      );
+    });
+
+    it('with power but must wait more time', async function() {
+      const tokenIdOne = 1;
+      const tokenIdThree = 3;
+      
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+      await this.alohaGovernance.deposit(
+        tokenIdOne,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.setVotingDelay(1000, { from: accounts[0] });
+      await this.alohaGovernance.deposit(
+        tokenIdThree,
+        { from: accounts[1] }
+      );
+
+      await expectRevert(
+        this.alohaGovernance.voteProposal(
+          proposalId,
+          2, // No
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: User needs to wait some time in order to vote proposal'
+      );
+
+      const proposal = await this.alohaGovernance.proposals.call(proposalId).valueOf();
+      assert.equal(
+        proposal.yesVotes,
+        0,
+        'Voting count is not correct'
+      );
+      assert.equal(
+        proposal.yesVotes,
+        0,
+        'Voting count is not correct'
+      );
+    });
+
+    it('not reviewed', async function() {
+      const tokenIdThree = 3;
+      
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+      await this.alohaGovernance.deposit(
+        tokenIdThree,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await expectRevert(
+        this.alohaGovernance.voteProposal(
+          proposalId,
+          2, // No
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: This proposal has not been accepted to vote'
+      );
+    });
+
+    it('reviewed KO', async function() {
+      const tokenIdThree = 3;
+      
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+      await this.alohaGovernance.deposit(
+        tokenIdThree,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        2,
+        { from: accounts[0] }
+      );
+
+      await expectRevert(
+        this.alohaGovernance.voteProposal(
+          proposalId,
+          2, // No
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: This proposal has not been accepted to vote'
+      );
+    });
+
+    it('two times voting', async function() {
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.voteProposal(
+        proposalId,
+        1, // Yes
+        { from: accounts[1] }
+      );
+
+      await expectRevert(
+        this.alohaGovernance.voteProposal(
+          proposalId,
+          2, // No
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: User has already voted'
+      );
+
+      const user = await this.alohaGovernance.users.call(accounts[1]).valueOf();
+      const proposal = await this.alohaGovernance.proposals.call(proposalId).valueOf();
+      assert.equal(
+        Number(proposal.yesVotes),
+        Number(user.power),
+        'User votes has not been recorded'
+      );
+      assert.equal(
+        proposal.noVotes,
+        0,
+        'Voting count is not correct'
+      );
+    });
+
+    it('out of time voting', async function() {
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+      await this.alohaGovernance.setVotingDuration(0, { from: accounts[0] });
+
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await timeout(1000);
+
+      await expectRevert(
+        this.alohaGovernance.voteProposal(
+          proposalId,
+          2, // No
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: This proposal voting timing has ended'
+      );
+    });
+
   });
 
 });
 
 function sumStrings(a,b) { 
   return ((BigInt(a)) + BigInt(b)).toString();
+}
+
+async function timeout(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
