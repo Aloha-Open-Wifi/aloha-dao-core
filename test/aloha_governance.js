@@ -1080,6 +1080,231 @@ contract('AlohaStaking', function (accounts) {
       );
     });
 
+    it('when not didPass', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(3));
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = '0x552410770000000000000000000000000000000000000000000000000000000000000001';
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.voteProposal(
+        proposalId,
+        2,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(7));
+
+      await expectRevert(
+        this.alohaGovernance.executeProposal(
+          proposalId,
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: This proposal was denied'
+    );
+
+      const mockStatus = await this.dummyMock.status.call().valueOf();
+      assert.equal(
+        mockStatus,
+        0,
+        'Contract value has changed'
+      );
+    });
+
+    it('when not ended', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(3));
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = '0x552410770000000000000000000000000000000000000000000000000000000000000001';
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.voteProposal(
+        proposalId,
+        1,
+        { from: accounts[1] }
+      );
+
+      await expectRevert(
+        this.alohaGovernance.executeProposal(
+          proposalId,
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: This proposal voting timing has not ended'
+    );
+
+      const mockStatus = await this.dummyMock.status.call().valueOf();
+      assert.equal(
+        mockStatus,
+        0,
+        'Contract value has changed'
+      );
+    });
+
+    it('when already execuded', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(3));
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = '0x552410770000000000000000000000000000000000000000000000000000000000000001';
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.voteProposal(
+        proposalId,
+        1,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(7));
+
+      await this.alohaGovernance.executeProposal(
+        proposalId,
+        { from: accounts[1] }
+      );
+
+      await expectRevert(
+        this.alohaGovernance.executeProposal(
+          proposalId,
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: Already executed proposal'
+      );
+    });
+
+    it('when not on-chain proposal', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(3));
+
+      const actionTo = '0x0000000000000000000000000000000000000000';
+      const actionValue = 0;
+      const actionData = 0;
+      const details = '';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.voteProposal(
+        proposalId,
+        1,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(7));
+
+      await expectRevert(
+        this.alohaGovernance.executeProposal(
+          proposalId,
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: Not on-chain proposal'
+      );
+    });
+
   });
 
 });

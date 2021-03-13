@@ -84,7 +84,6 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         uint256 starting;       // Min timestamp when users can start to vote
         uint256 yesVotes;       // Total YES votes
         uint256 noVotes;        // Total NO votes
-        bool approved;          // Approved or not
         ReviewStatus review;
         uint256 created;        // Created timestamp
         mapping(address => Vote) votesByMember; // Votes by user
@@ -174,7 +173,6 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
             starting: 0,
             yesVotes: 0,
             noVotes: 0,
-            approved: false,
             review: ReviewStatus.Waiting,
             created: timeNow
         });
@@ -243,13 +241,13 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     {
         Action memory action = proposals[_proposalId].action;
 
-        action.executed = true;
-        (bool success, bytes memory retData) = action.to.call.value(action.value)(action.data);
+        proposals[_proposalId].action.executed = true;
+        (bool success, bytes memory returnData) = action.to.call.value(action.value)(action.data);
         require(success, "AlohaGovernance: Execution failure");
         
         emit ExecutedProposal(_proposalId, msg.sender);
         
-        return retData;
+        return returnData;
     }
 
     function setVotingDelay(uint256 _votingDelay) public onlyOwner() {
