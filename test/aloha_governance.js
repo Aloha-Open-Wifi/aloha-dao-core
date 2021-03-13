@@ -94,6 +94,55 @@ contract('AlohaStaking', function (accounts) {
 
   });
 
+  describe('setters', function () {
+
+    it('setVotingDelay', async function() {
+      await this.alohaGovernance.setVotingDelay(time.duration.days(4))
+      assert.equal(
+        Number((await this.alohaGovernance.votingDelay.call().valueOf())),
+        Number(time.duration.days(4)),
+        'votingDelay has not correct value'
+      );
+    });
+
+    it('setWithdrawalDelay', async function() {
+      await this.alohaGovernance.setWithdrawalDelay(time.duration.days(4))
+      assert.equal(
+        Number(await this.alohaGovernance.withdrawalDelay.call().valueOf()),
+        Number(time.duration.days(4)),
+        'withdrawalDelay has not correct value'
+      );
+    });
+
+    it('setProposalModerator', async function() {
+      await this.alohaGovernance.setProposalModerator(accounts[2])
+      assert.equal(
+        await this.alohaGovernance.proposalModerator.call().valueOf(),
+        accounts[2],
+        'proposalModerator has not correct value'
+      );
+    });
+
+    it('setSubmitProposalRequiredPower', async function() {
+      await this.alohaGovernance.setSubmitProposalRequiredPower(100)
+      assert.equal(
+        await this.alohaGovernance.submitProposalRequiredPower.call().valueOf(),
+        100,
+        'submitProposalRequiredPower has not correct value'
+      );
+    });
+
+    it('setVotingDuration', async function() {
+      await this.alohaGovernance.setVotingDuration(time.duration.days(4))
+      assert.equal(
+        Number(await this.alohaGovernance.votingDuration.call().valueOf()),
+        Number(time.duration.days(4)),
+        'votingDuration has not correct value'
+      );
+    });
+
+  });
+
   describe('Deposit', function () {
 
     it('add fisrt token', async function() {
@@ -744,6 +793,50 @@ contract('AlohaStaking', function (accounts) {
         proposal.yesVotes,
         0,
         'Voting count is not correct'
+      );
+    });
+
+    it('(another) with power', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(3));
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await expectRevert.unspecified(
+        this.alohaGovernance.voteProposal(
+          proposalId,
+          3, // ???
+          { from: accounts[1] }
+        )
       );
     });
 

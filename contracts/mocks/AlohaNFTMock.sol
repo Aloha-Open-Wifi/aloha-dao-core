@@ -55,18 +55,8 @@ contract AlohaNFTMock is ERC721, Ownable {
         _tokenBackgrounds[tokenId] = _tokenBackground;
     }
 
-    function tokenImage(uint256 tokenId) public view returns (uint256) {
-        require(_exists(tokenId), "ERC721Metadata: Image query for nonexistent token");
-        return _tokenImages[tokenId];
-    }
-
     function tokenRarity(uint256 tokenId) public view returns (uint256) {
         require(_exists(tokenId), "ERC721Metadata: Rarity query for nonexistent token");
         return _tokenRarities[tokenId];
-    }
-
-    function tokenBackground(uint256 tokenId) public view returns (uint256) {
-        require(_exists(tokenId), "ERC721Metadata: Background query for nonexistent token");
-        return _tokenBackgrounds[tokenId];
     }
 }
