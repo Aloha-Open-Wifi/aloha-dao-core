@@ -148,6 +148,30 @@ contract('AlohaStaking', function (accounts) {
       );
     });
 
+    it('totalPower', async function() {
+      const tokenIdOne = 1;
+      const tokenIdTwo = 2;
+
+      await this.alohaGovernance.deposit(
+        tokenIdOne,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        tokenIdTwo,
+        { from: accounts[1] }
+      );
+
+      const totalPower = await this.alohaGovernance.totalPower.call().valueOf();
+      const rarityOne = await this.alohaNFTMock.tokenRarity.call(tokenIdOne).valueOf();
+      const rarityTwo = await this.alohaNFTMock.tokenRarity.call(tokenIdTwo).valueOf();
+
+      assert.equal(
+        powerByRarity[rarityOne - 1] + powerByRarity[rarityTwo - 1],
+        totalPower,
+        'totalPower wrong value'
+      );
+    });
+
     it('transfers the token', async function() {
       await this.alohaGovernance.deposit(
         1,
@@ -270,6 +294,42 @@ contract('AlohaStaking', function (accounts) {
         tokenOwner,
         accounts[1],
         'token owner is not the user address'
+      );
+    });
+
+    it('totalPower', async function() {
+      const tokenIdOne = 1;
+      const tokenIdTwo = 2;
+      const tokenIdThree = 3;
+
+      await this.alohaGovernance.setWithdrawalDelay(0, { from: accounts[0] });
+
+      await this.alohaGovernance.deposit(
+        tokenIdOne,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        tokenIdTwo,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        tokenIdThree,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.withdraw(
+        tokenIdTwo,
+        { from: accounts[1] }
+      );
+
+      const totalPower = await this.alohaGovernance.totalPower.call().valueOf();
+      const rarityOne = await this.alohaNFTMock.tokenRarity.call(tokenIdOne).valueOf();
+      const rarityThree = await this.alohaNFTMock.tokenRarity.call(tokenIdThree).valueOf();
+
+      assert.equal(
+        powerByRarity[rarityOne - 1] + powerByRarity[rarityThree - 1],
+        totalPower,
+        'totalPower wrong value'
       );
     });
 

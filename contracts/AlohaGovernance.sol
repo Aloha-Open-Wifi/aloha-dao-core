@@ -42,13 +42,12 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
 
     uint256 public proposalCount = 0;   // Total proposals submitted
     uint256 public totalPower = 0;      // Total users power
-    uint256[] public proposalQueue;
 
     // users[address] = User
     mapping (address => User) public users; 
     // tokenOwner[tokenId] = address
     mapping (uint256 => address) public tokenOwner; 
-    // usersPower[address] = totalPower
+    // usersPower[address] = userTotalPower
     mapping (address => uint256) public usersPower;
     // proposals[proposalId] = Proposal
     mapping(uint256 => Proposal) public proposals;
@@ -118,6 +117,8 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         users[msg.sender].canWithdraw = _getTime() + withdrawalDelay;
         users[msg.sender].power += powerByRarity[rarity - 1];
 
+        totalPower += powerByRarity[rarity - 1];
+
         tokenOwner[_tokenId] = msg.sender;
 
         emit Deposit(msg.sender, _tokenId, powerByRarity[rarity - 1], _getTime());
@@ -134,6 +135,8 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
 
         uint256 rarity = IAlohaNFT(alohaERC721).tokenRarity(_tokenId);
         users[msg.sender].power -= powerByRarity[rarity - 1];
+
+        totalPower -= powerByRarity[rarity - 1];
 
         tokenOwner[_tokenId] = address(0x0);
 
@@ -189,8 +192,6 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         onlyModerator()
         inWaitingStatus(_proposalId)
     {
-        require(newStatus != ReviewStatus.Waiting, 'AlohaGovernance: This proposal is already in Waiting status');
-
         uint256 timeNow = _getTime();
         Proposal storage proposal = proposals[_proposalId];
         
@@ -226,6 +227,18 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         }
 
         emit VotedProposal(_proposalId, msg.sender, vote, _getTime());
+    }
+
+    /**
+    * @dev Vote proposal
+    */
+    function runProposal(uint256 _proposalId)
+        public
+        reviewedOK(_proposalId)
+        ended(_proposalId)
+        didPass(_proposalId)
+    {
+ 
     }
 
     function setVotingDelay(uint256 _votingDelay) public onlyOwner() {
@@ -323,6 +336,22 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         require(
             proposals[_proposalId].starting + votingDuration >= _getTime(),
             'AlohaGovernance: This proposal voting timing has ended'
+        );
+        _;
+    }
+
+    modifier ended(uint256 _proposalId) {
+        require(
+            _getTime() >= proposals[_proposalId].starting + votingDuration,
+            'AlohaGovernance: This proposal voting timing has not ended'
+        );
+        _;
+    }
+
+    modifier didPass(uint256 _proposalId) {
+        require(
+            proposals[_proposalId].yesVotes > proposals[_proposalId].noVotes,
+            'AlohaGovernance: This proposal was denied'
         );
         _;
     }
