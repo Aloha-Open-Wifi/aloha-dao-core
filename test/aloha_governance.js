@@ -22,6 +22,8 @@ contract('AlohaStaking', function (accounts) {
       this.alohaNFTMock.address,
       { from: accounts[0] }
     );
+
+    this.alohaGovernance.setPowerLimit(10001, { from: accounts[0] });
     
     // Transfer
     const alohaAmount= '5000000000000000000';
@@ -138,6 +140,15 @@ contract('AlohaStaking', function (accounts) {
         Number(await this.alohaGovernance.votingDuration.call().valueOf()),
         Number(time.duration.days(4)),
         'votingDuration has not correct value'
+      );
+    });
+
+    it('setPowerLimit', async function() {
+      await this.alohaGovernance.setPowerLimit(5000)
+      assert.equal(
+        Number(await this.alohaGovernance.powerLimit.call().valueOf()),
+        Number(5000),
+        'powerLimit has not correct value'
       );
     });
 
@@ -739,6 +750,54 @@ contract('AlohaStaking', function (accounts) {
   });
 
   describe('Vote on-chain proposal', function () {
+
+    it('like a whale', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(3));
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      this.alohaGovernance.setPowerLimit(3000, { from: accounts[0] });
+
+      await expectRevert(
+        this.alohaGovernance.voteProposal(
+          proposalId,
+          1, // Yes
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: User has too much power'
+      );
+      
+    });
 
     it('(yes) with power', async function() {
       const tokenId = 3;

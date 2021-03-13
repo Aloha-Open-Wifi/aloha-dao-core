@@ -33,6 +33,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     event ExecutedProposal(uint256 _proposalId, address indexed user);
     event Deposit(address indexed user, uint256 tokenId, uint256 power, uint256 date);
     event Withdrawal(address indexed user, uint256 tokenId, uint256 power, uint256 date);
+    event Log(uint256 data1, uint256 data2, uint256 data3, bool data4);
 
     /******************
     INTERNAL ACCOUNTING
@@ -47,8 +48,6 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     mapping (address => User) public users; 
     // tokenOwner[tokenId] = address
     mapping (uint256 => address) public tokenOwner; 
-    // usersPower[address] = userTotalPower
-    mapping (address => uint256) public usersPower;
     // proposals[proposalId] = Proposal
     mapping(uint256 => Proposal) public proposals;
 
@@ -196,10 +195,11 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     */
     function voteProposal(uint256 _proposalId, Vote vote)
         public
-        canVote()
         notAlreadyVoted(_proposalId)
         reviewedOK(_proposalId)
         notEnded(_proposalId)
+        canVote()
+        preventWhales()
     {
         require(vote == Vote.Yes || vote == Vote.No, "AlohaGovernance: Vote must be 1 (Yes) or 2 (No)");
         
@@ -260,6 +260,10 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         votingDuration = _votingDuration;
     }
 
+    function setPowerLimit(uint256 _powerLimit) public onlyOwner() {
+        powerLimit = _powerLimit;
+    }
+
     /******************
     PRIVATE FUNCTIONS
     *******************/
@@ -298,6 +302,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
 
         return newProposalId;
     }
+
     function _getTime() internal view returns (uint256) {
         return block.timestamp;
     }
@@ -330,6 +335,20 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
          require(
             _getTime() >= users[msg.sender].canVote,
             "AlohaGovernance: User needs to wait some time in order to vote proposal"
+        );
+        _;
+    }
+
+    modifier preventWhales() {
+        emit Log(
+            totalPower,
+            users[msg.sender].power,
+            (users[msg.sender].power).mul(10000).div(totalPower),
+            (users[msg.sender].power).mul(10000).div(totalPower) <= powerLimit
+        );
+        require(
+            (users[msg.sender].power).mul(10000).div(totalPower) <= powerLimit,
+            "AlohaGovernance: User has too much power"
         );
         _;
     }
