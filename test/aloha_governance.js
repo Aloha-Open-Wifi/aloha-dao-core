@@ -5,6 +5,7 @@ const { expect } = require('chai');
 const AlohaGovernance = artifacts.require("AlohaGovernance");
 const AlohaMock = artifacts.require("AlohaMock");
 const AlohaNFTMock = artifacts.require("AlohaNFTMock");
+const DummyMock = artifacts.require("DummyMock");
 
 contract('AlohaStaking', function (accounts) {
 
@@ -14,6 +15,7 @@ contract('AlohaStaking', function (accounts) {
     // Deploy
     this.alohaMock = await AlohaMock.new({ from: accounts[0] });
     this.alohaNFTMock = await AlohaNFTMock.new({ from: accounts[0] });
+    this.dummyMock = await DummyMock.new({ from: accounts[0] });
 
     this.alohaGovernance = await AlohaGovernance.new(
       this.alohaMock.address,
@@ -165,6 +167,8 @@ contract('AlohaStaking', function (accounts) {
   describe('Withdraw', function () {
     
     it('delay in progress', async function() {
+      await this.alohaGovernance.setWithdrawalDelay(10000, { from: accounts[0] });
+
       await this.alohaGovernance.deposit(
         1,
         { from: accounts[1] }
@@ -271,8 +275,251 @@ contract('AlohaStaking', function (accounts) {
 
   });
 
-});
+  describe('Submit on-chain proposal', function () {
 
+    it('with no power', async function() {
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      await expectRevert(
+        this.alohaGovernance.submitOnChainProposal(
+          actionTo,
+          actionValue,
+          actionData,
+          details,
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: User needs more power to submit proposal'
+      );
+    });
+
+    it('with power but must wait more time', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      await expectRevert(
+        this.alohaGovernance.submitOnChainProposal(
+          actionTo,
+          actionValue,
+          actionData,
+          details,
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: User needs to wait some time in order to submit proposal'
+      );
+    });
+
+    it('with power active', async function() {
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      proposal = await this.alohaGovernance.proposals.call(0).valueOf();
+      assert.equal(
+        proposal.proposer,
+        accounts[1],
+        'Created proposal has not right "proposer" value'
+      );
+      assert.equal(
+        proposal.action.value,
+        actionValue,
+        'Created proposal has not right "action" value'
+      );
+      assert.equal(
+        proposal.action.to,
+        actionTo,
+        'Created proposal has not right "action to" value'
+      );
+      assert.equal(
+        proposal.action.data,
+        actionData,
+        'Created proposal has not right "action data" value'
+      );
+      assert.equal(
+        proposal.details,
+        details,
+        'Created proposal has not right "details" value'
+      );
+      assert.equal(
+        proposal.review,
+        0,
+        'Created proposal has not right "review" value'
+      );
+
+    });
+
+  });
+
+  describe('Review on-chain proposal', function () {
+
+    it('by non moderator user', async function() {
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await expectRevert(
+        this.alohaGovernance.reviewProposal(
+          proposalId,
+          2,
+          { from: accounts[1] }
+        ),
+        'AlohaGovernance: Only moderator can call this function'
+      );
+      
+    });
+
+    it('and reject', async function() {
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        2,
+        { from: accounts[0] }
+      );
+
+      proposal = await this.alohaGovernance.proposals.call(proposalId).valueOf();
+      assert.equal(
+        proposal.review,
+        2,
+        'Rejected proposal has not right "review" value'
+      );
+      assert.equal(
+        proposal.starting,
+        0,
+        'Rejected proposal has not right "starting" value'
+      );
+      
+    });
+
+    it('and approve', async function() {
+      await this.alohaGovernance.setVotingDelay(0, { from: accounts[0] });
+
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      proposal = await this.alohaGovernance.proposals.call(proposalId).valueOf();
+      assert.equal(
+        proposal.review,
+        1,
+        'Approved proposal has not right "review" value'
+      );
+      assert.notEqual(
+        proposal.starting,
+        0,
+        'Approved proposal has not right "starting" value'
+      );
+      
+    });
+
+  });
+
+});
 
 function sumStrings(a,b) { 
   return ((BigInt(a)) + BigInt(b)).toString();

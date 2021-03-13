@@ -27,11 +27,12 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     /*****
     EVENTS
     ******/
-    event SubmitedProposal();
+    event ProcessedProposal(uint256 proposalId, address proposer, string details, uint256 created);
+    event ReviewedProposal(uint256 proposalId, address proposalModerator, ReviewStatus newStatus, uint256 created);
     event VotedProposal();
     event ProcessedProposal();
-    event Deposit();
-    event Withdrawal();
+    event Deposit(address indexed user, uint256 tokenId, uint256 power, uint256 date);
+    event Withdrawal(address indexed user, uint256 tokenId, uint256 power, uint256 date);
 
     /******************
     INTERNAL ACCOUNTING
@@ -49,7 +50,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     mapping (uint256 => address) public tokenOwner; 
     // usersPower[address] = totalPower
     mapping (address => uint256) public usersPower;
-    // proposals[index] = Proposal
+    // proposals[proposalId] = Proposal
     mapping(uint256 => Proposal) public proposals;
 
     struct User {
@@ -71,6 +72,12 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         No
     }
 
+    enum ReviewStatus {
+        Waiting,
+        OK,
+        KO
+    }
+
     struct Proposal {
         address proposer;       // The account that submitted the proposal
         Action action;          // Proposal action to be exeuted
@@ -79,7 +86,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         uint256 yesVotes;       // Total YES votes
         uint256 noVotes;        // Total NO votes
         bool approved;          // Approved or not
-        uint256 status;         // 0 = Waiting review, 1 = Review OK, 9 = Review KO
+        ReviewStatus review;
         uint256 created;        // Created timestamp
         mapping(address => Vote) votesByMember; // Votes by user
     }
@@ -112,10 +119,12 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         users[msg.sender].power += powerByRarity[rarity - 1];
 
         tokenOwner[_tokenId] = msg.sender;
+
+        emit Deposit(msg.sender, _tokenId, powerByRarity[rarity - 1], _getTime());
     }
 
     /**
-    * @dev Los usuarios retiran ALOHA NFT y pierden poder de voto en función de la rareza del token.
+    * @dev Users withdraws ALOHA NFT and lose voting power based on the rarity of the token.
     */
     function withdraw(uint256 _tokenId)
         public
@@ -127,10 +136,86 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         users[msg.sender].power -= powerByRarity[rarity - 1];
 
         tokenOwner[_tokenId] = address(0x0);
+
+        emit Withdrawal(msg.sender, _tokenId, powerByRarity[rarity - 1], _getTime());
+    }
+
+    /**
+    * @dev Users submits a on-chain proposal
+    */
+    function submitOnChainProposal(
+        address _actionTo,
+        uint256 _actionValue,
+        bytes memory _actionData,
+        string memory _details
+    )
+        public
+        canSubmitProposal()
+        returns (uint256 proposalId)
+    {
+        uint256 timeNow = _getTime();
+        uint256 newProposalId = proposalCount;
+        proposalCount += 1;
+
+        Action memory onChainAction = Action({
+            value: _actionValue,
+            to: _actionTo,
+            executed: false,
+            data: _actionData
+        });
+
+        proposals[newProposalId] = Proposal({
+            proposer: msg.sender,
+            action: onChainAction,
+            details: _details,
+            starting: 0,
+            yesVotes: 0,
+            noVotes: 0,
+            approved: false,
+            review: ReviewStatus.Waiting,
+            created: timeNow
+        });
+
+        emit ProcessedProposal(newProposalId, msg.sender, _details, timeNow);
+
+        return newProposalId;
+    }
+
+    /**
+    * @dev Moderator reviews proposal
+    */
+    function reviewProposal(uint256 _proposalId, ReviewStatus newStatus)
+        public
+        onlyModerator()
+        inWaitingStatus(_proposalId)
+    {
+        require(newStatus != ReviewStatus.Waiting, 'AlohaGovernance: This proposal is already in Waiting status');
+
+        uint256 timeNow = _getTime();
+        
+        proposals[_proposalId].review = newStatus;
+
+        if (newStatus == ReviewStatus.OK) {
+            proposals[_proposalId].starting = timeNow;
+        }
+
+        emit ReviewedProposal(_proposalId, msg.sender, newStatus, timeNow);
+    }
+
+    function setVotingDelay(uint256 _votingDelay) public onlyOwner() {
+        votingDelay = _votingDelay;
     }
 
     function setWithdrawalDelay(uint256 _withdrawalDelay) public onlyOwner() {
         withdrawalDelay = _withdrawalDelay;
+    }
+
+    function setProposalModerator(address _proposalModerator) public onlyOwner() {
+        proposalModerator = _proposalModerator;
+    }
+
+    function setSubmitProposalRequiredPower(uint256 _submitProposalRequiredPower) public onlyOwner() {
+        submitProposalRequiredPower = _submitProposalRequiredPower;
     }
 
     /******************
@@ -150,4 +235,34 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         );
         _;
     }
+
+    modifier canSubmitProposal() {
+        require(
+            users[msg.sender].power >= submitProposalRequiredPower,
+            "AlohaGovernance: User needs more power to submit proposal"
+        );
+        _;
+         require(
+            _getTime() >= users[msg.sender].canVote,
+            "AlohaGovernance: User needs to wait some time in order to submit proposal"
+        );
+        _;
+    }
+
+    modifier onlyModerator() {
+        require(
+            msg.sender == proposalModerator,
+            "AlohaGovernance: Only moderator can call this function"
+        );
+        _;
+    }
+
+    modifier inWaitingStatus(uint256 _proposalId) {
+        require(
+            proposals[_proposalId].review == ReviewStatus.Waiting,
+            'AlohaGovernance: This proposal has already been reviewed'
+        );
+        _;
+    }
+
 }
