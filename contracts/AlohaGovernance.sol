@@ -6,14 +6,15 @@ import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "./AlohaGovernanceRewards.sol";
 import "./IAlohaNFT.sol";
 
-contract AlohaGovernance is Ownable, ReentrancyGuard {
+contract AlohaGovernance is AlohaGovernanceRewards, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeMath for uint8;
 
     /******************
-    Governance config
+    CONFIG
     ******************/
     uint256 public powerLimit = 4000;                   // User max vote power: 40%
     uint256 public votingDelay = 3 days;                // Time to wait before deposit power counts
@@ -64,7 +65,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     }
 
     enum Vote {
-        Null,   // default value
+        Null,
         Yes,
         No
     }
@@ -93,7 +94,10 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
     constructor(
         address _alohaERC20,
         address _alohaERC721
-    ) public {
+    )
+        public
+        AlohaGovernanceRewards (_alohaERC20)
+    {
         require(address(_alohaERC20) != address(0)); 
         require(address(_alohaERC721) != address(0));
 
@@ -239,6 +243,9 @@ contract AlohaGovernance is Ownable, ReentrancyGuard {
         return returnData;
     }
 
+    /******************
+    SETTERS FUNCTIONS
+    *******************/
     function setVotingDelay(uint256 _votingDelay) public onlyOwner() {
         votingDelay = _votingDelay;
     }
