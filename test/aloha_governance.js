@@ -7,7 +7,7 @@ const AlohaMock = artifacts.require("AlohaMock");
 const AlohaNFTMock = artifacts.require("AlohaNFTMock");
 const DummyMock = artifacts.require("DummyMock");
 
-contract('AlohaStaking', function (accounts) {
+contract('AlohaGovernance', function (accounts) {
 
   const powerByRarity = [1, 5, 50];
 

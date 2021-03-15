@@ -9,7 +9,7 @@ import "../node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./AlohaGovernanceRewards.sol";
 import "./IAlohaNFT.sol";
 
-contract AlohaGovernance is AlohaGovernanceRewards, Ownable, ReentrancyGuard {
+contract AlohaGovernance is Ownable, ReentrancyGuard, AlohaGovernanceRewards {
     using SafeMath for uint256;
     using SafeMath for uint8;
 
@@ -38,7 +38,6 @@ contract AlohaGovernance is AlohaGovernanceRewards, Ownable, ReentrancyGuard {
     /******************
     INTERNAL ACCOUNTING
     *******************/
-    address public alohaERC20;
     address public alohaERC721;
 
     uint256 public proposalCount = 0;   // Total proposals submitted
@@ -113,16 +112,18 @@ contract AlohaGovernance is AlohaGovernanceRewards, Ownable, ReentrancyGuard {
         IERC721(alohaERC721).transferFrom(msg.sender, address(this), _tokenId);
 
         uint256 rarity = IAlohaNFT(alohaERC721).tokenRarity(_tokenId);
+        uint256 power = powerByRarity[rarity - 1];
 
         users[msg.sender].canVote = _getTime() + votingDelay;
         users[msg.sender].canWithdraw = _getTime() + withdrawalDelay;
-        users[msg.sender].power += powerByRarity[rarity - 1];
+        users[msg.sender].power += power;
 
-        totalPower += powerByRarity[rarity - 1];
-
+        totalPower += power;
         tokenOwner[_tokenId] = msg.sender;
 
-        emit Deposit(msg.sender, _tokenId, powerByRarity[rarity - 1], _getTime());
+        _stake(power);
+
+        emit Deposit(msg.sender, _tokenId, power, _getTime());
     }
 
     /**
@@ -135,13 +136,15 @@ contract AlohaGovernance is AlohaGovernanceRewards, Ownable, ReentrancyGuard {
         IERC721(alohaERC721).transferFrom(address(this), tokenOwner[_tokenId], _tokenId);
 
         uint256 rarity = IAlohaNFT(alohaERC721).tokenRarity(_tokenId);
-        users[msg.sender].power -= powerByRarity[rarity - 1];
+        uint256 power = powerByRarity[rarity - 1];
 
-        totalPower -= powerByRarity[rarity - 1];
-
+        users[msg.sender].power -= power;
+        totalPower -= power;
         tokenOwner[_tokenId] = address(0x0);
 
-        emit Withdrawal(msg.sender, _tokenId, powerByRarity[rarity - 1], _getTime());
+        _unstake(power);
+
+        emit Withdrawal(msg.sender, _tokenId, power, _getTime());
     }
 
     /**
@@ -236,6 +239,7 @@ contract AlohaGovernance is AlohaGovernanceRewards, Ownable, ReentrancyGuard {
 
         proposals[_proposalId].action.executed = true;
         (bool success, bytes memory returnData) = action.to.call.value(action.value)(action.data);
+        
         require(success, "AlohaGovernance: Execution failure");
         
         emit ExecutedProposal(_proposalId, msg.sender);
@@ -307,10 +311,6 @@ contract AlohaGovernance is AlohaGovernanceRewards, Ownable, ReentrancyGuard {
         emit ProcessedProposal(newProposalId, msg.sender, _details, timeNow);
 
         return newProposalId;
-    }
-
-    function _getTime() internal view returns (uint256) {
-        return block.timestamp;
     }
 
     /******************
