@@ -24,7 +24,6 @@ contract AlohaGovernanceRewards is ReentrancyGuard {
     ******************/
     event Claimed(address indexed user, uint amount);
     event Rewarded(uint256 amount, uint256 totalStaked, uint date);
-    event Log(string description, uint256 amount2);
 
     /******************
     INTERNAL ACCOUNTING
@@ -52,8 +51,6 @@ contract AlohaGovernanceRewards is ReentrancyGuard {
 
         uint256 reward = IERC20(alohaERC20).balanceOf(address(this));
         rewardPerUnit = reward.div(totalStaked);
-        
-        emit Log('[claim] rewardPerUnit', rewardPerUnit);
 
         emit Rewarded(reward, totalStaked, _getTime());
     }
@@ -75,9 +72,6 @@ contract AlohaGovernanceRewards is ReentrancyGuard {
         
         require(IERC20(alohaERC20).transfer(msg.sender, claimableAmount), "AlohaGovernanceRewards: Transfer failed");
         
-        emit Log('[claim] claimableAmount', claimableAmount);
-        emit Log('[claim] rewardPerUnit', rewardPerUnit);
-
         emit Claimed(msg.sender, claimableAmount);
     }
 
@@ -97,9 +91,6 @@ contract AlohaGovernanceRewards is ReentrancyGuard {
         }
 
         totalStaked = totalStaked.add(_amount);
-
-        emit Log('[_stake] stakesMap[msg.sender]', stakesMap[msg.sender]);
-        emit Log('[_stake] rewardPerUnit', rewardPerUnit);
     }
 
     function _unstake(uint256 _amount) internal {
@@ -113,5 +104,4 @@ contract AlohaGovernanceRewards is ReentrancyGuard {
     function _getTime() internal view returns (uint256) {
         return block.timestamp;
     }
-
 }

@@ -432,5 +432,4 @@ contract AlohaGovernance is Ownable, ReentrancyGuard, AlohaGovernanceRewards {
         );
         _;
     }
-
 }
