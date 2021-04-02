@@ -8,8 +8,9 @@
   },
   "scripts": {
     "test": "truffle test",
-    "flatten-all": "del-cli ./dist && mkdir \\dist && npm run flatten-aloha-governance",
-    "flatten-aloha-nft": "truffle-flattener contracts/AlohaGovernance.sol > dist/AlohaGOvernance.flatten.sol"
+    "flatten-all": "del-cli ./dist && mkdir \\dist && npm run flatten-aloha-governance && npm run flatten-aloha-governance-rewards",
+    "flatten-aloha-governance": "truffle-flattener contracts/AlohaGovernance.sol > dist/AlohaGovernance.flatten.sol",
+    "flatten-aloha-governance-rewards": "truffle-flattener contracts/AlohaGovernanceRewards.sol > dist/AlohaGovernanceRewards.flatten.sol"
   },
   "author": "",
   "license": "ISC",

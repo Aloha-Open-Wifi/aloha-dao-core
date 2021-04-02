@@ -34,10 +34,12 @@ contract AlohaGovernance is Ownable, ReentrancyGuard, AlohaGovernanceRewards {
     event ExecutedProposal(uint256 _proposalId, address indexed user);
     event Deposit(address indexed user, uint256 tokenId, uint256 power, uint256 date);
     event Withdrawal(address indexed user, uint256 tokenId, uint256 power, uint256 date);
+    event Log(string data1, uint256 data2);
 
     /******************
     INTERNAL ACCOUNTING
     *******************/
+    address public alohaERC20;
     address public alohaERC721;
 
     uint256 public proposalCount = 0;   // Total proposals submitted
@@ -95,7 +97,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard, AlohaGovernanceRewards {
         address _alohaERC721
     )
         public
-        AlohaGovernanceRewards (_alohaERC20)
+        AlohaGovernanceRewards(_alohaERC20)
     {
         require(address(_alohaERC20) != address(0)); 
         require(address(_alohaERC721) != address(0));

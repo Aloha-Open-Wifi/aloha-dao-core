@@ -32,7 +32,7 @@ contract('AlohaGovernanceRewards', function (accounts) {
       { from: accounts[0] }
     );
 
-    this.rewardsAmount = 10000;
+    this.rewardsAmount = '10000';
     this.alohaMock.transfer(
       this.alohaGovernance.address,
       this.rewardsAmount.toString(),
@@ -58,6 +58,13 @@ contract('AlohaGovernanceRewards', function (accounts) {
       3,
       3,
       3,
+      { from: accounts[0] }
+    );
+    this.alohaNFTMock.awardItem(
+      accounts[1],
+      1,
+      1,
+      1,
       { from: accounts[0] }
     );
 
@@ -95,7 +102,7 @@ contract('AlohaGovernanceRewards', function (accounts) {
         { from: accounts[1] }
       );
 
-      const stake = await this.alohaGovernance.stakesMap.call(accounts[1]).valueOf();
+      const stake = await this.alohaGovernance.stakeMap.call(accounts[1]).valueOf();
       const rarity = await this.alohaNFTMock.tokenRarity.call(tokenId).valueOf();
       assert.equal(
         stake,
@@ -124,7 +131,7 @@ contract('AlohaGovernanceRewards', function (accounts) {
         { from: accounts[1] }
       );
 
-      const stake = await this.alohaGovernance.stakesMap.call(accounts[1]).valueOf();
+      const stake = await this.alohaGovernance.stakeMap.call(accounts[1]).valueOf();
       assert.equal(
         stake,
         0,
@@ -218,9 +225,6 @@ contract('AlohaGovernanceRewards', function (accounts) {
 
       await time.increase(time.duration.days(7));
 
-      const balanceOneBeforeWithdraw = await this.alohaMock.balanceOf(accounts[1]);
-      const balanceThreeBeforeWithdraw = await this.alohaMock.balanceOf(accounts[3]);
-
       await this.alohaGovernance.withdraw(
         tokenOneId,
         { from: accounts[1] }
@@ -233,24 +237,146 @@ contract('AlohaGovernanceRewards', function (accounts) {
       const balanceOneAfterWithdraw = await this.alohaMock.balanceOf(accounts[1]);
       const balanceThreeAfterWithdraw = await this.alohaMock.balanceOf(accounts[3]);
 
-      const rarityOne = await this.alohaNFTMock.tokenRarity.call(tokenOneId).valueOf();
-      const rarityThree = await this.alohaNFTMock.tokenRarity.call(tokenThreeId).valueOf();
-      
-      const powerOne = powerByRarity[rarityOne - 1];
-      const powerThree = powerByRarity[rarityThree - 1];
-      const totalPower = (powerOne + powerThree);
-
-      const rewardPerUnit = Math.trunc(this.rewardsAmount / totalPower);
-
       assert.equal(
-        balanceOneAfterWithdraw,
-        sumStrings(balanceOneBeforeWithdraw, (rewardPerUnit * powerOne)),
+        balanceOneAfterWithdraw.toString(),
+        '910',
         'Rewards for Account 1 not correct'
       );
 
       assert.equal(
-        balanceThreeAfterWithdraw,
-        sumStrings(balanceThreeBeforeWithdraw, (rewardPerUnit * powerThree)),
+        balanceThreeAfterWithdraw.toString(),
+        '9090',
+        'Rewards for Account 2 not correct'
+      );
+    });
+
+    it('gets rewards when two deposits for the same user', async function() {
+      const tokenOneId = 1;
+      const tokenFourId = 4;
+      await this.alohaGovernance.deposit(
+        tokenOneId,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        tokenFourId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(7));
+
+      await this.alohaGovernance.withdraw(
+        tokenOneId,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.withdraw(
+        tokenFourId,
+        { from: accounts[1] }
+      );
+
+      const balanceAfterWithdraw = await this.alohaMock.balanceOf(accounts[1]);
+
+      assert.equal(
+        balanceAfterWithdraw.toString(),
+        '10001',
+        'Rewards for Account 1 not correct'
+      );
+    });
+
+    it('gets rewards when two deposits with more users', async function() {
+      const tokenOneId = 1;
+      const tokenTwoId = 2;
+      const tokenFourId = 4;
+      await this.alohaGovernance.deposit(
+        tokenOneId,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        tokenTwoId,
+        { from: accounts[2] }
+      );
+      await this.alohaGovernance.deposit(
+        tokenFourId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(7));
+
+      await this.alohaGovernance.withdraw(
+        tokenTwoId,
+        { from: accounts[2] }
+      );
+      await this.alohaGovernance.withdraw(
+        tokenOneId,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.withdraw(
+        tokenFourId,
+        { from: accounts[1] }
+      );
+
+      const balanceAccountOneAfterWithdraw = await this.alohaMock.balanceOf(accounts[1]);
+      const balanceAccountTwoAfterWithdraw = await this.alohaMock.balanceOf(accounts[2]);
+
+      assert.equal(
+        balanceAccountOneAfterWithdraw.toString(),
+        '5001',
+        'Rewards for Account 1 not correct'
+      );
+
+      assert.equal(
+        balanceAccountTwoAfterWithdraw.toString(),
+        '5000',
+        'Rewards for Account 2 not correct'
+      );
+    });
+
+    it('gets rewards when two deposits with more users, and add more rewards', async function() {
+      const tokenOneId = 1;
+      const tokenTwoId = 2;
+      const tokenFourId = 4;
+      await this.alohaGovernance.deposit(
+        tokenOneId,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.deposit(
+        tokenTwoId,
+        { from: accounts[2] }
+      );
+      await this.alohaGovernance.deposit(
+        tokenFourId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(7));
+
+      const newRewardsAmount = '10000';
+      await this.alohaMock.transfer(this.alohaGovernance.address, newRewardsAmount, { from: accounts[0] })
+
+      await this.alohaGovernance.withdraw(
+        tokenTwoId,
+        { from: accounts[2] }
+      );
+      await this.alohaGovernance.withdraw(
+        tokenOneId,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.withdraw(
+        tokenFourId,
+        { from: accounts[1] }
+      );
+
+      const balanceAccountOneAfterWithdraw = await this.alohaMock.balanceOf(accounts[1]);
+      const balanceAccountTwoAfterWithdraw = await this.alohaMock.balanceOf(accounts[2]);
+
+      assert.equal(
+        balanceAccountOneAfterWithdraw.toString(),
+        '10455',
+        'Rewards for Account 1 not correct'
+      );
+
+      assert.equal(
+        balanceAccountTwoAfterWithdraw.toString(),
+        '9545',
         'Rewards for Account 2 not correct'
       );
     });
@@ -269,16 +395,12 @@ contract('AlohaGovernanceRewards', function (accounts) {
 
       await this.alohaGovernance.distribute({ from: accounts[1] });
 
-      const newRewardsAmount = 10000;
-
+      const newRewardsAmount = '10000';
       await this.alohaMock.transfer(this.alohaGovernance.address, newRewardsAmount, { from: accounts[0] })
 
       await this.alohaGovernance.distribute({ from: accounts[1] });
 
       await time.increase(time.duration.days(7));
-
-      const balanceOneBeforeWithdraw = await this.alohaMock.balanceOf(accounts[1]);
-      const balanceThreeBeforeWithdraw = await this.alohaMock.balanceOf(accounts[3]);
 
       await this.alohaGovernance.withdraw(
         tokenOneId,
@@ -292,25 +414,15 @@ contract('AlohaGovernanceRewards', function (accounts) {
       const balanceOneAfterWithdraw = await this.alohaMock.balanceOf(accounts[1]);
       const balanceThreeAfterWithdraw = await this.alohaMock.balanceOf(accounts[3]);
 
-      const rarityOne = await this.alohaNFTMock.tokenRarity.call(tokenOneId).valueOf();
-      const rarityThree = await this.alohaNFTMock.tokenRarity.call(tokenThreeId).valueOf();
-      
-      const powerOne = powerByRarity[rarityOne - 1];
-      const powerThree = powerByRarity[rarityThree - 1];
-      const totalPower = (powerOne + powerThree);
-      const totalRewards = (this.rewardsAmount + newRewardsAmount);
-
-      const rewardPerUnit = Math.trunc(totalRewards / totalPower);
-
       assert.equal(
-        balanceOneAfterWithdraw,
-        sumStrings(balanceOneBeforeWithdraw, (rewardPerUnit * powerOne)),
+        balanceOneAfterWithdraw.toString(),
+        '1819',
         'Rewards for Account 1 not correct'
       );
 
       assert.equal(
-        balanceThreeAfterWithdraw,
-        sumStrings(balanceThreeBeforeWithdraw, (rewardPerUnit * powerThree)),
+        balanceThreeAfterWithdraw.toString(),
+        '18181',
         'Rewards for Account 2 not correct'
       );
     });
@@ -361,21 +473,21 @@ contract('AlohaGovernanceRewards', function (accounts) {
       const balanceThreeAfterWithdraw = await this.alohaMock.balanceOf(accounts[3]);
 
       assert.equal(
-        balanceOneAfterWithdraw,
-        '1666',
+        balanceOneAfterWithdraw.toString(),
+        '1743',
         'Rewards for Account 1 not correct'
       );
 
       assert.equal(
-        balanceTwoAfterWithdraw,
-        '760',
-        'Rewards for Account 1 not correct'
+        balanceTwoAfterWithdraw.toString(),
+        '833',
+        'Rewards for Account 2 not correct'
       );
 
       assert.equal(
-        balanceThreeAfterWithdraw,
-        '17550',
-        'Rewards for Account 1 not correct'
+        balanceThreeAfterWithdraw.toString(),
+        '17424',
+        'Rewards for Account 3 not correct'
       );
     });
 
