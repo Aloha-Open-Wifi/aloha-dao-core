@@ -14,7 +14,6 @@ contract AlohaGovernanceRewards is Ownable, ReentrancyGuard {
 
     event Claimed(address indexed wallet, address indexed rewardToken, uint amount);
     event Rewarded(address indexed rewardToken, uint amount, uint totalStaked, uint date);
-    event Log3(string data0, uint256 data1, uint256 data2);
 
     uint BIGNUMBER = 10**18;
 

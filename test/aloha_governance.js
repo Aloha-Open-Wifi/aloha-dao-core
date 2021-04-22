@@ -854,6 +854,56 @@ contract('AlohaGovernance', function (accounts) {
       );
     });
 
+    it('read vote', async function() {
+      const tokenId = 3;
+      await this.alohaGovernance.deposit(
+        tokenId,
+        { from: accounts[1] }
+      );
+
+      await time.increase(time.duration.days(3));
+
+      const actionTo = this.dummyMock.address;
+      const actionValue = 0;
+      const actionData = 1;
+      const details = 'https://www.meme.com';
+
+      const proposalId = await this.alohaGovernance.submitOnChainProposal.call(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+      await this.alohaGovernance.submitOnChainProposal(
+        actionTo,
+        actionValue,
+        actionData,
+        details,
+        { from: accounts[1] }
+      );
+
+      await this.alohaGovernance.reviewProposal(
+        proposalId,
+        1,
+        { from: accounts[0] }
+      );
+
+      await this.alohaGovernance.voteProposal(
+        proposalId,
+        1, // Yes
+        { from: accounts[1] }
+      );
+
+      const vote = await this.alohaGovernance.getUserVoteByProposal.call(proposalId, accounts[1]).valueOf();
+
+      assert.equal(
+        vote,
+        1,
+        'Read vote fails'
+      );
+    });
+
     it('(no) with power', async function() {
       const tokenId = 3;
       await this.alohaGovernance.deposit(
