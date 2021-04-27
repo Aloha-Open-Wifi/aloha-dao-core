@@ -152,6 +152,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard, AlohaGovernanceRewards {
     * @dev Users submits a on-chain proposal
     */
     function submitOnChainProposal(
+        uint256 newProposalId,
         address _actionTo,
         uint256 _actionValue,
         bytes memory _actionData,
@@ -161,20 +162,27 @@ contract AlohaGovernance is Ownable, ReentrancyGuard, AlohaGovernanceRewards {
         canSubmitProposal()
         returns (uint256 proposalId)
     {
-        return _submitProposal(_actionTo, _actionValue, _actionData, _details);
+        if (newProposalId == proposalCount) {
+            return _submitProposal(newProposalId, _actionTo, _actionValue, _actionData, _details);
+        }
+        return newProposalId;
     }
 
     /**
     * @dev Users submits a off-chain proposal
     */
     function submitOffChainProposal(
+        uint256 newProposalId,
         string memory _details
     )
         public
         canSubmitProposal()
         returns (uint256 proposalId)
     {
-       return _submitProposal(address(0x0), 0, '', _details);
+        if (newProposalId == proposalCount) {
+            return _submitProposal(newProposalId, address(0x0), 0, '', _details);
+        }
+        return newProposalId;
     }
 
     /**
@@ -267,6 +275,10 @@ contract AlohaGovernance is Ownable, ReentrancyGuard, AlohaGovernanceRewards {
         withdrawalDelay = _withdrawalDelay;
     }
 
+    function setExecuteProposalDelay(uint256 _executeProposalDelay) public onlyOwner() {
+        executeProposalDelay = _executeProposalDelay;
+    }
+
     function setProposalModerator(address _proposalModerator) public onlyOwner() {
         proposalModerator = _proposalModerator;
     }
@@ -287,17 +299,17 @@ contract AlohaGovernance is Ownable, ReentrancyGuard, AlohaGovernanceRewards {
     PRIVATE FUNCTIONS
     *******************/
     function _submitProposal(
+        uint256 newProposalId,
         address _actionTo,
         uint256 _actionValue,
         bytes memory _actionData,
         string memory _details
     )
         internal
+        nonReentrant()
         returns (uint256 proposalId)
     {
         uint256 timeNow = _getTime();
-        uint256 newProposalId = proposalCount;
-        proposalCount += 1;
 
         Action memory onChainAction = Action({
             value: _actionValue,
@@ -319,6 +331,8 @@ contract AlohaGovernance is Ownable, ReentrancyGuard, AlohaGovernanceRewards {
 
         emit ProcessedProposal(newProposalId, msg.sender, _details, timeNow);
 
+        proposalCount += 1;
+
         return newProposalId;
     }
 
@@ -338,8 +352,7 @@ contract AlohaGovernance is Ownable, ReentrancyGuard, AlohaGovernanceRewards {
             users[msg.sender].power >= submitProposalRequiredPower,
             "AlohaGovernance: User needs more power to submit proposal"
         );
-        _;
-         require(
+        require(
             _getTime() >= users[msg.sender].canVote,
             "AlohaGovernance: User needs to wait some time in order to submit proposal"
         );
