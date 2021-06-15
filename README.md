@@ -1,6 +1,7 @@
-# Aloha Governance
+# Aloha Governance Contracts
 
-## Instructions
+🤙 🗳 Smart contracts for the DAO powered by the Aloha NFTs. 
+
 
 # Test
 
